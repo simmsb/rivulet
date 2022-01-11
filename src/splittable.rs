@@ -67,6 +67,13 @@ pub unsafe trait SplittableViewImpl: Sized + Unpin {
         len: usize,
     ) -> Poll<Result<usize, Self::Error>>;
 
+    /// Test if a given amount is available
+    fn try_available(
+        self: &Self,
+        index: u64,
+        len: usize
+    ) -> Result<usize, Self::Error>;
+
     /// Obtain a view into the stream.
     ///
     /// # Safety

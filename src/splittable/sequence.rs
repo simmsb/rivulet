@@ -130,6 +130,10 @@ where
         Pin::new(&self.shared.splittable).poll_available(cx, register_wakeup, index, len)
     }
 
+    fn try_available(self: &Self, index: u64, len: usize) -> Result<usize, Self::Error> {
+        self.shared.splittable.try_available(index, len)
+    }
+
     unsafe fn view(&self, index: u64, len: usize) -> &[Self::Item] {
         self.shared.splittable.view(index, len)
     }
@@ -221,6 +225,20 @@ where
                 Poll::Ready(Ok(available))
             } else {
                 Poll::Pending
+            }
+        }
+    }
+
+    fn try_available(self: &Self, index: u64, len: usize) -> Result<usize, Self::Error> {
+        let available = self.readable_len(index);
+        if available >= len {
+            Ok(available)
+        } else {
+            let available = self.readable_len(index);
+            if available >= len || self.shared.closed.load(Ordering::Relaxed) {
+                Ok(available)
+            } else {
+                Ok(0)
             }
         }
     }

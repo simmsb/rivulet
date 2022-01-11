@@ -212,6 +212,30 @@ impl<T> View for Sink<T> {
         }
     }
 
+    fn try_grant(self: &mut Self, count: usize) -> Result<bool, Self::Error> {
+        if count > self.state.buffer.len() {
+            return Err(GrantOverflow(self.state.buffer.len()));
+        }
+
+        if self.available >= count {
+            return Ok(true);
+        }
+
+        let available = self.state.writeable_len();
+        if available >= count {
+            self.available = available;
+            return Ok(true);
+        } else {
+            let available = self.state.writeable_len();
+            if available >= count || self.state.closed.load(Ordering::Relaxed) {
+                self.available = available;
+                return Ok(true);
+            }
+
+            return Ok(false)
+        }
+    }
+
     fn release(&mut self, count: usize) {
         if count == 0 {
             return;
@@ -325,6 +349,29 @@ unsafe impl<T> SplittableViewImpl for Source<T> {
             }
         }
     }
+
+    fn try_available(
+        &self,
+        index: u64,
+        count: usize,
+    ) -> Result<usize, GrantOverflow> {
+        if count > self.state.buffer.len() {
+            return Err(GrantOverflow(self.state.buffer.len()));
+        }
+
+        let available = self.state.readable_len(index);
+        if available >= count {
+            return Ok(available);
+        } else {
+            let available = self.state.readable_len(index);
+            if available >= count || self.state.closed.load(Ordering::Relaxed) {
+                return Ok(available);
+            }
+
+            return Ok(0)
+        }
+    }
+
 
     unsafe fn view(&self, index: u64, len: usize) -> &[Self::Item] {
         self.state.buffer.range(index, len)

@@ -51,6 +51,14 @@ pub trait View: Sized + Unpin {
         count: usize,
     ) -> Poll<Result<(), Self::Error>>;
 
+    /// Attempt to obtain a view of at least `count` elements.
+    ///
+    /// If the request exceeds the maximum possible grant (if there is one), an error should be returned.
+    fn try_grant(
+        self: &mut Self,
+        count: usize,
+    ) -> Result<bool, Self::Error>;
+
     /// Attempt to advance past the first `count` elements in the current view.
     ///
     /// # Panics
@@ -101,6 +109,10 @@ impl<S: View> View for &mut S {
         count: usize,
     ) -> Poll<Result<(), Self::Error>> {
         S::poll_grant(Pin::new(&mut **self), cx, count)
+    }
+
+    fn try_grant(self: &mut Self, count: usize) -> Result<bool, Self::Error> {
+        S::try_grant(&mut **self, count)
     }
 
     fn release(&mut self, count: usize) {
@@ -161,6 +173,10 @@ where
         let pinned = self.project();
         let f = pinned.map;
         pinned.view.poll_grant(cx, count).map(|r| r.map_err(f))
+    }
+
+    fn try_grant(self: &mut Self, count: usize) -> Result<bool, Self::Error> {
+        self.view.try_grant(count).map_err(&self.map)
     }
 
     fn release(&mut self, count: usize) {

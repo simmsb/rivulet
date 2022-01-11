@@ -47,6 +47,12 @@ unsafe impl<'a, T> SplittableViewImpl for Slice<'a, T> {
         Poll::Ready(Ok(len - index.min(len)))
     }
 
+    fn try_available(self: &Self, index: u64, len: usize) -> Result<usize, Self::Error> {
+        let index: usize = index.try_into().unwrap();
+        let len = self.0.as_ref().len();
+        Ok(len - index.min(len))
+    }
+
     unsafe fn view(&self, index: u64, len: usize) -> &[Self::Item] {
         let index = index.try_into().unwrap();
         &self.0[index..index + len]
@@ -98,6 +104,11 @@ unsafe impl<'a, T> SplittableViewImpl for SliceMut<'a, T> {
     ) -> Poll<Result<usize, Self::Error>> {
         let index: usize = index.try_into().unwrap();
         Poll::Ready(Ok(self.len - index.min(self.len)))
+    }
+
+    fn try_available(self: &Self, index: u64, len: usize) -> Result<usize, Self::Error> {
+        let index: usize = index.try_into().unwrap();
+        Ok(self.len - index.min(self.len))
     }
 
     unsafe fn view(&self, index: u64, len: usize) -> &[Self::Item] {

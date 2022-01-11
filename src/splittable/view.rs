@@ -70,6 +70,17 @@ where
         }
     }
 
+    fn try_grant(self: &mut Self, count: usize) -> Result<bool, Self::Error> {
+        match self.splittable.try_available(self.head, self.len) {
+            Ok(0) => Ok(false),
+            Ok(len) => {
+                self.len = len;
+                Ok(true)
+            },
+            Err(e) => Err(e)
+        }
+    }
+
     fn release(&mut self, count: usize) {
         assert!(
             count <= self.len,

@@ -74,6 +74,17 @@ where
         }
     }
 
+    fn try_grant(self: &mut Self, count: usize) -> Result<bool, Self::Error> {
+        if count > 0 {
+            if self.view.is_none() {
+                self.view.get_or_insert(self.init.take().unwrap()());
+            }
+            self.view.as_mut().unwrap().try_grant(count)
+        } else {
+            Ok(true)
+        }
+    }
+
     fn release(&mut self, count: usize) {
         if count > 0 {
             self.view
@@ -182,6 +193,18 @@ mod channel {
             }
         }
 
+
+        fn try_grant(self: &mut Self, count: usize) -> Result<bool, Self::Error> {
+            if count > 0 {
+                if self.view.is_none() {
+                    self.view.get_or_insert(self.shared.take_sink());
+                }
+                self.view.as_mut().unwrap().try_grant(count)
+            } else {
+                Ok(true)
+            }
+        }
+
         fn release(&mut self, count: usize) {
             if count > 0 {
                 self.view
@@ -245,6 +268,19 @@ mod channel {
                 Pin::new(this.view.as_mut().unwrap()).poll_grant(cx, count)
             } else {
                 Poll::Ready(Ok(()))
+            }
+        }
+
+        fn try_grant(self: &mut Self, count: usize) -> Result<bool, Self::Error> {
+            if count > 0 {
+                if self.view.is_none() {
+                    if let Some(source) = self.shared.try_take_source() {
+                        self.view.get_or_insert(source);
+                    }
+                }
+                self.view.as_mut().unwrap().try_grant(count)
+            } else {
+                Ok(true)
             }
         }
 
