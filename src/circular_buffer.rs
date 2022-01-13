@@ -226,12 +226,6 @@ impl<T> View for Sink<T> {
             self.available = available;
             return Ok(true);
         } else {
-            let available = self.state.writeable_len();
-            if available >= count || self.state.closed.load(Ordering::Relaxed) {
-                self.available = available;
-                return Ok(true);
-            }
-
             return Ok(false)
         }
     }
@@ -353,21 +347,17 @@ unsafe impl<T> SplittableViewImpl for Source<T> {
     fn try_available(
         &self,
         index: u64,
-        count: usize,
+        len: usize,
     ) -> Result<usize, GrantOverflow> {
-        if count > self.state.buffer.len() {
-            return Err(GrantOverflow(self.state.buffer.len()));
+        let max_len = self.state.buffer.len();
+        if len > max_len {
+            return Err(GrantOverflow(max_len));
         }
 
         let available = self.state.readable_len(index);
-        if available >= count {
+        if available >= len {
             return Ok(available);
         } else {
-            let available = self.state.readable_len(index);
-            if available >= count || self.state.closed.load(Ordering::Relaxed) {
-                return Ok(available);
-            }
-
             return Ok(0)
         }
     }

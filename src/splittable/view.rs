@@ -71,7 +71,7 @@ where
     }
 
     fn try_grant(self: &mut Self, count: usize) -> Result<bool, Self::Error> {
-        match self.splittable.try_available(self.head, self.len) {
+        match self.splittable.try_available(self.head, count) {
             Ok(0) => Ok(false),
             Ok(len) => {
                 self.len = len;
